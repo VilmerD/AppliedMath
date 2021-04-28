@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr 27 15:28:59 2021
+
+@author: vilmer
+"""
+import numpy as np
+import scipy as sp
+from scipy.integrate import solve_ivp
+from scipy.optimize import newton
+import matplotlib.pyplot as plt
+
+
+def computeShock(f, up, um, tspan, y0):
+    """
+    Computes the path of the shock wave given the flow f,
+    and the concentration up in front of the wave and um
+    behind the wave.
+    """
+    xprime = lambda t, y: (f(up(t, y)) - f(um(t, y)))/(up(t, y) - um(t, y))
+    sol = solve_ivp(xprime, tspan, y0, method='RK45', dense_output=True)
+    return sol, lambda t: xprime(t, sol.sol(t))
+
+def shock(f, umax, uminus, vi, v0, L, tf):
+    y0 = [0]
+    up = 1
+    um = uminus
+    spr1 = (f(up) - f(um))/(up - um)
+    s1 = lambda t: spr1*t
+    
+    # Second shock
+    ti = L/vi
+    y0 = [L*(1 - v0/vi)]
+    up = lambda t, x: umax/2*(1 - (x - L)/(t*v0))
+    um = lambda t, x: uminus
+    sol2, spr2 = computeShock(f, up, um, [ti, tf], y0)
+    s2 = sol2.sol
+    
+    # Complete wave
+    s =  lambda t: s1(t) *(t < ti) + s2(t)   *(t >= ti)
+    spr = lambda t: spr1(t)*(t < ti) + spr2(t)  *(t >= ti)
+    return s, spr
+
+def plotLines(flow, x0, trange, shock, xprime, ax):
+    """
+    Plot the characteristic lines given by the flows flow, 
+    from the positions x0
+    """
+    # Make Characteristic lines
+    N, = x0.shape
+    M, = trange.shape
+    t0, tf = trange[[0, -1]]
+    tguess = np.array([tf - t0])
+    for i in np.arange(0, N):
+        Li = lambda t: flow[i]*t + x0[i]
+        Fi = lambda t: shock(t[0]) - Li(t[0])
+        Fpi = lambda t: xprime(t[0]) - flow[i]
+        try:
+            ts = newton(Fi, tguess, fprime = Fpi)
+            ts = min(ts, tf)
+            ts = ts if ts >= 0 else tf
+        except:
+            ts = tf
+        tti = np.linspace(t0, ts, M)
+        ax.plot(flow[i]*tti + x0[i], tti, 'k')
+    
+def plotCharacteristicLines(v, f, fp, v0, vi, umax, L):
+    # Setup
+    t0, tf = 0, 2
+    xmin, xmax = -tf*vi, v0*tf
+    
+    # Setup initial condition
+    uminus = umax*(1 - vi/v0)
+    u0 = lambda x: uminus*(x < 0) + umax * (x >= 0) * (x < L) + 0 * (x > L)
+    
+    # Setup t-axis
+    Nt = 100
+    tt = np.linspace(t0, tf, num=Nt)
+    
+    # Setup plot and axi
+    fig, ax = plt.subplots()
+    
+    # Make xaxis
+    Nx1 = 40
+    
+    # Distance between two lines on x-axis
+    dx1 = (xmax - xmin)/Nx1
+    
+    # Shortest distance between two lines should be same for
+    # all lines, defined as d
+    d = abs(dx1*np.sin(np.pi + np.arctan(1/fp(uminus))))
+    xx1 = np.linspace(xmin, 0, num=Nx1)
+    
+    # Ensure distance between two lines is exactly d
+    dx2 = abs(d/np.sin(np.pi + np.arctan(1/fp(u_max))))
+    Nx2 = int((xmax - 0)/dx2)
+    xx2 = np.linspace(0, xmax, num=Nx2)
+    
+    # Stack the points
+    xx = np.hstack((xx1, xx2))
+    
+    # Make characteristic lines
+    u0_val = u0(xx)
+    flowu0 = fp(u0_val)
+    x0u0 = xx.copy()
+    
+    # Make fan
+    Nfan = 20
+    theta0 = np.arctan(1/v0)
+    thetan = np.pi + np.arctan(-1/v0)
+    flow_fan = 1/np.tan(np.linspace(theta0, thetan, num=Nfan+1)[1:])
+    x0fan = L*np.ones((Nfan, ))
+    
+    # Stitch together fan and lines from u0
+    flow = np.hstack((flowu0, flow_fan))
+    x0 = np.hstack((x0u0, x0fan))
+    
+    s, spr = shock(f, umax, uminus, vi, v0, L , tf)
+    plotLines(flow, x0, tt, s, sp, ax)
+        
+    # Finish plotting
+    ax.plot(s(tt).reshape((100, )), tt)
+    plt.xlim([xmin/10, xmax])
+    plt.ylim([t0, tf])
+    plt.xlabel('x [1]')
+    plt.ylabel('time [1]')
+    plt.show()
+
+def plotPaths(v0, vi):
+    fig, ax = plt.subplots()
+    t0, tf, Nt = 0, 2, 100
+    tt = np.linspace(t0, tf, num=Nt)
+    tvec = tt.reshape((Nt, 1))
+    
+    xmin, xmax, Nx = -vi*tf/4, v0*tf/4, 20
+    xx = np.linspace(xmin, 0, num=Nx)
+    
+    for c in np.arange(0, Nx):
+        xxc = xx[c]
+        tsc = -xxc/v0
+        pstop = xxc*(tvec < tsc)
+        pmove = (v0*tvec - 2*np.sqrt(-v0*xxc*tvec))*(tvec >= tsc)
+        ax.plot(pstop + pmove, tvec, 'k')
+    plt.xlim((xmin, xmax))
+    plt.ylim((t0, tf))
+    plt.xlabel('cars position x [1]')
+    plt.ylabel('time [1]')
+    plt.show()
+
+v0, vi, u_max = 1, 0.7, 1
+L = 1
+v = lambda u: v0*(1 - u/u_max)
+f = lambda u: v(u)*u
+fp = lambda u: v0*(1 - 2*u/u_max)
+plotPaths(v0, vi)
