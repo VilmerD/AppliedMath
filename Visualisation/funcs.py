@@ -111,7 +111,7 @@ def plotCharacteristicLines(f, fp, v0, vi, u_max, L):
             return ufan(t, x)
 
     def um(t, x):
-        return u_minus + t*0 + x*0
+        return u_minus
 
     # Shock wave
     s, spr = computeShock(f, up, um, [0, tf], [0])
@@ -131,7 +131,6 @@ def plotCharacteristicLines(f, fp, v0, vi, u_max, L):
         u3 = ufan * (x >= L - v0 * t) * (x < L + v0 * t)
         u4 = 0 * (x >= L + v0 * t)
         return u1 + u2 + u3 + u4
-    return u_sol
 
 """
 Plots the paths of some cars given the max velocity v0 and the initial velocity vi
@@ -157,3 +156,17 @@ def plotPaths(v0, vi):
     plt.ylabel('time [1]')
     plt.show()
 
+
+def plotFluxFunction(f):
+    fig, ax = plt.subplots()
+    uu = np.linspace(0, 1, 100)
+    ax.plot(uu, f(uu))
+    
+    # Shock speed
+    up, um = 0.9, 0.3
+    l = (f(up) - f(um))/(up - um)*(uu - up) + f(up)
+    ax.plot(uu, l, 'k')
+    ax.plot(up, f(up), 'ro', um, f(um), 'ro')
+    plt.xlabel('u')
+    plt.ylabel('$f(u)$')
+    plt.show
