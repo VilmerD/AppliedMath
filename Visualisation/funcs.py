@@ -48,10 +48,10 @@ def findIntersectAndPlot(flow, x0, t_range, s, spr, ax):
 """
 Plots the characteristic lines
 """
-def plotCharacteristicLines(f, fp, v0, vi, u_max, L):
+def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40, plot_cars=0):
     # Setup
-    t0, tf = 0, 40
-    x_min, x_max = -tf * vi, v0 * tf/4
+    t0, tf = trange
+    x_min, x_max = xrange
 
     # Setup initial condition
     u_minus = u_max * (1 - vi / v0)
@@ -67,20 +67,19 @@ def plotCharacteristicLines(f, fp, v0, vi, u_max, L):
     fig, ax = plt.subplots()
 
     # Make xaxis
-    Nx1 = 40
-
     # Distance between two lines on x-axis
-    dx1 = (x_max - x_min) / Nx1
+    xx_min, xx_max = x_min*10, x_max
+    dx1 = (xx_max - xx_min) / Nx1
 
     # Shortest distance between two lines should be same for
     # all lines, defined as d
     d = abs(dx1 * np.sin(np.pi + np.arctan(1 / fp(u_minus))))
-    xx1 = np.linspace(x_min, 0, num=Nx1)
+    xx1 = np.linspace(xx_min, 0, num=Nx1)
 
     # Ensure distance between two lines is exactly d
     dx2 = abs(d / np.sin(np.arctan(1 / fp(u_max))))
-    Nx2 = int((x_max - 0) / dx2)
-    xx2 = np.linspace(0, x_max, num=Nx2)
+    Nx2 = int((xx_max - 0) / dx2)
+    xx2 = np.linspace(0, xx_max, num=Nx2)
 
     # Stack the points
     xx = np.hstack((xx1, xx2))
@@ -103,7 +102,12 @@ def plotCharacteristicLines(f, fp, v0, vi, u_max, L):
 
     ti = L/vi
 
-    ufan = lambda t, x: u_max / 2 * (1 - (x - L) / (t * v0))
+    def ufan(t, x):
+        if t > 0:
+            return (u_max / 2) * (1 - (x - L) / (t * v0))
+        else:
+            return (1/2)*(x == 0)
+
     def up(t, x):
         if t < ti:
             return u_max
@@ -115,23 +119,38 @@ def plotCharacteristicLines(f, fp, v0, vi, u_max, L):
 
     # Shock wave
     s, spr = computeShock(f, up, um, [0, tf], [0])
+
+    def u_sol(t, x):
+        # Lines
+        l1 = (x < s(t))
+        l2 = (x < L - v0 * t) * (t < ti) + (x < s(t)) * (t >= ti)
+        l3 = (x < L + v0 * t)
+
+        # Solution
+        u1 = u_minus            *  l1 *  l2 *  l3
+        u2 = u_max              * ~l1 *  l2 *  l3
+        u3 = ufan(t, x)         * ~l1 * ~l2 *  l3
+        u4 = 0                  * ~l1 * ~l2 * ~l3
+        return u1 + u2 + u3 + u4
+
     findIntersectAndPlot(flow, x0, tt, s, spr, ax)
 
     # Finish plotting
-    ax.plot(s(tt).reshape((100,)), tt)
-    plt.xlim([x_min / 10, x_max])
-    plt.ylim([t0, tf])
+    ax.plot(s(tt).reshape((Nt,)), tt, 'k--')
+
+    if plot_cars > 0:
+        x_car = np.linspace(x_min, L, num=plot_cars)
+        xp = lambda t, x: v(u_sol(t, x))
+        for x0 in x_car:
+            sol = solve_ivp(xp, trange, [x0], method='RK45', dense_output=True, max_step=(tf - t0)/Nt)
+            plt.plot(sol.sol(tt).reshape((Nt,)), tt, 'r')
+
+    plt.xlim(xrange)
+    plt.ylim(trange)
     plt.xlabel('x [1]')
     plt.ylabel('time [1]')
     plt.show()
 
-    def u_sol(t, x):
-        u1 = u_minus * (x < s(t))
-        u2 = u_max * (x > s(t)) * (x < L - v0 * t)
-        u3 = ufan * (x >= L - v0 * t) * (x < L + v0 * t)
-        u4 = 0 * (x >= L + v0 * t)
-        return u1 + u2 + u3 + u4
-    return u_sol
 
 """
 Plots the paths of some cars given the max velocity v0 and the initial velocity vi
