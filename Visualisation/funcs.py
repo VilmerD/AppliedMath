@@ -90,10 +90,11 @@ def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40
     x0u0 = xx.copy()
 
     # Make fan
-    N_fan = 40
-    theta0 = np.arctan(1 / v0)
-    theta_n = np.pi + np.arctan(-1 / v0)
-    flow_fan = 1 / np.tan(np.linspace(theta0, theta_n, num=N_fan + 1)[1:])
+    N_fan = 20
+    theta0 = np.arctan(1/(v0/(x_max/tf)))
+    theta_n = np.pi - theta0
+    angles = np.linspace(theta0, theta_n, num=N_fan + 1)[1:]
+    flow_fan = (x_max * np.cos(angles)) / (tf * np.sin(angles))
     x0fan = L * np.ones((N_fan,))
 
     # Stitch together fan and lines from u0
@@ -151,15 +152,6 @@ def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40
     plt.ylabel('time [1]')
     plt.show()
 
-<<<<<<< HEAD
-=======
-    def u_sol(t, x):
-        u1 = u_minus * (x < s(t))
-        u2 = u_max * (x > s(t)) * (x < L - v0 * t)
-        u3 = ufan * (x >= L - v0 * t) * (x < L + v0 * t)
-        u4 = 0 * (x >= L + v0 * t)
-        return u1 + u2 + u3 + u4
->>>>>>> 7004f648ad29b2f647abf5244e30ddaebda6efe3
 
 """
 Plots the paths of some cars given the max velocity v0 and the initial velocity vi
@@ -192,10 +184,13 @@ def plotFluxFunction(f):
     ax.plot(uu, f(uu))
     
     # Shock speed
-    up, um = 0.9, 0.3
-    l = (f(up) - f(um))/(up - um)*(uu - up) + f(up)
-    ax.plot(uu, l, 'k')
-    ax.plot(up, f(up), 'ro', um, f(um), 'ro')
-    plt.xlabel('u')
+    um, up = 0.3, 1
+    km = 4
+    for k in range(0, km):
+        upk = up + k*(um - up)/km
+        l = (f(upk) - f(um))/(upk - um)*(uu - upk) + f(upk)
+        ax.plot(uu, l, 'k')
+        ax.plot(upk, f(upk), 'ro', um, f(um), 'ro')
+    plt.xlabel('$u$')
     plt.ylabel('$f(u)$')
-    plt.show
+    plt.show()
