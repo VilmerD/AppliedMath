@@ -56,11 +56,11 @@ def problem1():
         figureSaver(fig, 'u0_problem1eps.png')
         fig.show()
 
-    def problem1lines(plotFan):
-        xMax, tMax = 1, 0.01
-        nLines = 20
+    def problem1lines(plotFan, plotCars):
+        xMax, tf = 1, 0.02
+        nLines = 10
         xx = np.linspace(-xMax, xMax, nLines, endpoint=True).reshape((nLines, 1))
-        tt = np.linspace(0, tMax, 100).reshape((100, 1))
+        tt = np.linspace(0, tf, 100).reshape((100, 1))
         vz = np.ones((int(nLines / 2), 1))
         lines1 = -100 * vz @ tt.T + xx[0:int(nLines / 2)]
         lines2 = 100 * vz @ tt.T + xx[int(nLines / 2):]
@@ -71,10 +71,10 @@ def problem1():
         ax.plot(lines2.T, tt, 'g' if not plotFan else 'k')
         if plotFan:
             nLinesFan = 10
-            aMin = np.arctan(100 / (xMax / tMax))
+            aMin = np.arctan(xMax/(100*tf))
             aMax = np.pi - aMin
             angles = np.linspace(aMin, aMax, nLinesFan).reshape((nLinesFan, 1))
-            vnz = (xMax * np.cos(angles)) / (tMax * np.sin(angles))
+            vnz = (xMax * np.cos(angles)) / (tf * np.sin(angles))
             fanLines = vnz @ tt.T
             ax.plot(fanLines.T, tt, 'k')
             name = 'u0_problem1LinesAndFan.png'
@@ -82,16 +82,25 @@ def problem1():
             ax.text(-0.5, 0.005, '$u = 100$', color='r')
             ax.text(0.3, 0.005, '$u = 0$', color='g')
             name = 'u0_problem1Lines.png'
+        if plotCars:
+            nCars = 5
+            x0Cars = np.linspace(-xMax, 0, nCars, endpoint=False).reshape((nCars, 1))
+            for k in range(1, nCars):
+                x0k = x0Cars[k]
+                ti = -x0k/100
+                ttk = np.linspace(ti, tf, 100).reshape((100, 1))
+                xk = np.vstack(([x0k], 100*ttk - 20*np.sqrt(-x0k*ttk)))
+                ttk = np.vstack(([0], ttk))
+                ax.plot(xk, ttk, 'r')
+            name = 'u0_problem1LinesAndFanAndCars.png'
         plt.xlabel('x [km]')
         plt.ylabel('t [h]')
         plt.xlim((-1, 1))
 
         figureSaver(fig, name)
         fig.show()
-    problem1u0()
-    problem1lines(False)
-    problem1epsilon()
-    problem1lines(True)
+
+    problem1lines(True, False)
 
 def problem2():
     v0, vi, u_max = 100, 70, 100
