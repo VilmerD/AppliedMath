@@ -102,50 +102,45 @@ def problem1():
 
     problem1lines(True, False)
 
+
 def problem2():
-    v0, vi, u_max = 100, 70, 100
-    L = 0.5
-    ui = u_max * (1 - vi / v0)
-    xx1 = np.linspace(-1, 0, 100).reshape((100, 1))
-    xx2 = np.linspace(0, L, 100).reshape((100, 1))
-    xx3 = np.linspace(L, 1, 100).reshape((100, 1))
-    xx = np.vstack((xx1, xx2, xx3))
+    def u02(v0, vi, u_max):
+        L = 0.5
+        ui = u_max * (1 - vi / v0)
+        xx1 = np.linspace(-1, 0, 100).reshape((100, 1))
+        xx2 = np.linspace(0, L, 100).reshape((100, 1))
+        xx3 = np.linspace(L, 1, 100).reshape((100, 1))
+        xx = np.vstack((xx1, xx2, xx3))
 
-    u01 = ui * np.ones((100, 1))
-    u02 = u_max * np.ones((100, 1))
-    u03 = np.zeros((100, 1))
-    u0 = np.vstack((u01, u02, u03))
+        u01 = ui * np.ones((100, 1))
+        u02 = u_max * np.ones((100, 1))
+        u03 = np.zeros((100, 1))
+        u0 = np.vstack((u01, u02, u03))
+        return xx, u0
 
-    fig, ax = plt.subplots()
-    ax.plot(xx, u0)
-    plt.xlabel('$x$ [km]')
-    plt.ylabel('$u_0(x)$ [cars/km]')
-    figureSaver(fig, 'u0_problem2.png')
-    fig.show()
+    def u02WithNumbers():
+        v0, vi, u_max = 100, 70, 100
+        xx, u0 = u02(v0, vi, u_max)
 
+        fig, ax = plt.subplots()
+        ax.plot(xx, u0)
+        plt.xlabel('$x$ [km]')
+        plt.ylabel('$u_0(x)$ [cars/km]')
+        figureSaver(fig, 'u0_problem2.png')
+        fig.show()
 
-def problem3():
-    v0, vi, u_max = 100, 70, 100
-    L = 0.5
-    ui = u_max * (1 - vi / v0)
-    xx1 = np.linspace(-0.5, 0, 100).reshape((100, 1))
-    xx2 = np.linspace(0, L, 100).reshape((100, 1))
-    xx3 = np.linspace(L, 1, 100).reshape((100, 1))
-    xx = np.vstack((xx1, xx2, xx3))
+    def u02General():
+        v0, vi, u_max = 100, 70, 100
+        xx, u0 = u02(v0, vi, u_max)
 
-    u01 = ui * np.ones((100, 1))
-    u02 = u_max * np.ones((100, 1))
-    u03 = np.zeros((100, 1))
-    u0 = np.vstack((u01, u02, u03))
-
-    fig, ax = plt.subplots()
-    ax.plot(xx, u0)
-    plt.xlabel('$x/L$  [1]')
-    plt.ylabel('$u_0/u_{max}$  [1]')
-    plt.xticks((0, 0.5), ['0', '1'])
-    plt.yticks((0, 30, 100), ['0', r'$1 - \frac{v_i}{v_o}$', '$1$'])
-    figureSaver(fig, 'u0_problem2.png')
-    fig.show()
+        fig, ax = plt.subplots()
+        ax.plot(xx, u0)
+        plt.xlabel('$x/L$  [1]')
+        plt.ylabel('$u_0/u_{max}$  [1]')
+        plt.xticks((0, 0.5), ['0', '1'])
+        plt.yticks((0, 30, 100), ['0', r'$1 - \frac{v_i}{v_o}$', '$1$'])
+        figureSaver(fig, 'u0_problem2.png')
+        fig.show()
 
 
 def figureSaver(fig, name, shape=(7, 2), bottom=0.25, left=0.15):

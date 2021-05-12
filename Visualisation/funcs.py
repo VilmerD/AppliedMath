@@ -11,18 +11,6 @@ from scipy.optimize import newton
 import matplotlib.pyplot as plt
 
 """
-Computes the path of the shock wave given the flow f,
-and the concentration up in front of the wave and um
-behind the wave in the span tspan, starting at x = x0
-"""
-def computeShock(f, up, um, tspan, x0):
-    def spr(t, x):
-        return (f(up(t, x)) - f(um(t, x))) / (up(t, x) - um(t, x))
-
-    sol = solve_ivp(spr, tspan, x0, method='RK45', dense_output=True)
-    return sol.sol, lambda t: spr(t, sol.sol(t))
-
-"""
 Plot the characteristic lines given by the flows flow, 
 from the positions x0
 """
@@ -48,7 +36,7 @@ def findIntersectAndPlot(flow, x0, t_range, s, spr, ax):
 """
 Plots the characteristic lines
 """
-def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40, plot_cars=0):
+def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40, plot_cars=0, nFan=15):
     # Setup
     t0, tf = trange
     x_min, x_max = xrange
@@ -77,7 +65,7 @@ def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40
     xx1 = np.linspace(xx_min, 0, num=Nx1)
 
     # Ensure distance between two lines is exactly d
-    dx2 = abs(d / np.sin(np.arctan(1 / fp(u_max))))
+    dx2 = abs(d / np.sin(np.arctan(1 / fp(u_max))))/3
     Nx2 = int((xx_max - 0) / dx2)
     xx2 = np.linspace(0, xx_max, num=Nx2)
 
@@ -90,18 +78,18 @@ def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40
     x0u0 = xx.copy()
 
     # Make fan
-    N_fan = 20
     theta0 = np.arctan(1/(v0/(x_max/tf)))
     theta_n = np.pi - theta0
-    angles = np.linspace(theta0, theta_n, num=N_fan + 1)[1:]
+    angles = np.linspace(theta0, theta_n, num=nFan + 1)[1:]
     flow_fan = (x_max * np.cos(angles)) / (tf * np.sin(angles))
-    x0fan = L * np.ones((N_fan,))
+    x0fan = L * np.ones((nFan,))
 
     # Stitch together fan and lines from u0
     flow = np.hstack((flowu0, flow_fan))
     x0 = np.hstack((x0u0, x0fan))
 
-    ti = L/vi
+    tc = L/vi
+    xc = -(v0 - vi)*tc
 
     def ufan(t, x):
         if t > 0:
@@ -109,22 +97,17 @@ def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40
         else:
             return (1/2)*(x == 0)
 
-    def up(t, x):
-        if t < ti:
-            return u_max
-        else:
-            return ufan(t, x)
-
-    def um(t, x):
-        return u_minus
-
     # Shock wave
-    s, spr = computeShock(f, up, um, [0, tf], [0])
+    def s(t):
+        return -(v0 - vi)*t*(t <= tc) + ((2*vi - v0)*t - 2*np.sqrt(abs(vi*L*t)) + L)*(t > tc)
+
+    def spr(t):
+        return -(v0 - vi)*(t <= tc) + 1/2*((2*vi - v0) + (s(t) - L)/t)*(t > tc)
 
     def u_sol(t, x):
         # Lines
         l1 = (x < s(t))
-        l2 = (x < L - v0 * t) * (t < ti) + (x < s(t)) * (t >= ti)
+        l2 = (x < L - v0 * t) * (t < tc) + (x < s(t)) * (t >= tc)
         l3 = (x < L + v0 * t)
 
         # Solution
@@ -134,10 +117,11 @@ def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40
         u4 = 0                  * ~l1 * ~l2 * ~l3
         return u1 + u2 + u3 + u4
 
-    findIntersectAndPlot(flow, x0, tt, s, spr, ax)
+    ttshock = np.linspace(0, tf, Nt)
+    findIntersectAndPlot(flow, x0, ttshock, s, spr, ax)
 
     # Finish plotting
-    ax.plot(s(tt).reshape((Nt,)), tt, 'k--')
+    ax.plot(s(ttshock).reshape((Nt,)), ttshock, 'b--')
 
     if plot_cars > 0:
         x_car = np.linspace(x_min, L, num=plot_cars)
@@ -146,10 +130,38 @@ def plotCharacteristicLines(f, fp, v, v0, vi, u_max, L, trange, xrange, Nx1 = 40
             sol = solve_ivp(xp, trange, [x0], method='RK45', dense_output=True, max_step=(tf - t0)/Nt)
             plt.plot(sol.sol(tt).reshape((Nt,)), tt, 'r')
 
+    # Plotting dot at tc
+    if tf < 8*tc: plt.plot(xc, tc, 'ro')
+
+    # Tick-marks
+    if tf < 8*tc:
+        xticks = [0, L, xc]
+        xtickmarks = ['0', 'L', '$x_c$']
+        yticks = [0, tc, tf]
+        ytickmarks = ['0', '$t_c$', '$t_f$']
+        name = 'problem2Lines1.png'
+    else:
+        xticks = [0, L]
+        xtickmarks = ['0', 'L']
+        yticks = [0, tf]
+        ytickmarks = ['0', '$t_f$']
+        name = 'problem2Lines2.png'
+    plt.xticks(xticks, xtickmarks)
+    plt.yticks(yticks, ytickmarks)
+
+    # Fixing axis and labels
     plt.xlim(xrange)
     plt.ylim(trange)
-    plt.xlabel('x [1]')
-    plt.ylabel('time [1]')
+    plt.xlabel('x')
+    plt.ylabel('t')
+
+    # Preparations for saving figure
+    fig.tight_layout()
+    shape, bottom, left = (7, 2), 0.25, 0.10
+    fig.subplots_adjust(bottom=bottom)
+    fig.subplots_adjust(left=left)
+    fig.set_size_inches(shape)
+    fig.savefig(name, format='png', dpi=100)
     plt.show()
 
 
